@@ -79,15 +79,13 @@ type LoginMgr struct {
 	w           sync.Mutex
 	loginStatus int
 
-	groupListener               open_im_sdk_callback.OnGroupListener
-	friendListener              open_im_sdk_callback.OnFriendshipListener
-	conversationListener        open_im_sdk_callback.OnConversationListener
-	advancedMsgListener         open_im_sdk_callback.OnAdvancedMsgListener
-	batchMsgListener            open_im_sdk_callback.OnBatchMsgListener
-	userListener                open_im_sdk_callback.OnUserListener
-	signalingListener           open_im_sdk_callback.OnSignalingListener
-	signalingListenerFroService open_im_sdk_callback.OnSignalingListener
-	businessListener            open_im_sdk_callback.OnCustomBusinessListener
+	groupListener        open_im_sdk_callback.OnGroupListener
+	friendListener       open_im_sdk_callback.OnFriendshipListener
+	conversationListener open_im_sdk_callback.OnConversationListener
+	advancedMsgListener  open_im_sdk_callback.OnAdvancedMsgListener
+	batchMsgListener     open_im_sdk_callback.OnBatchMsgListener
+	userListener         open_im_sdk_callback.OnUserListener
+	businessListener     open_im_sdk_callback.OnCustomBusinessListener
 
 	conversationCh     chan common.Cmd2Value
 	cmdWsCh            chan common.Cmd2Value
@@ -340,8 +338,19 @@ func (u *LoginMgr) InitSDK(config sdk_struct.IMConfig, listener open_im_sdk_call
 	u.info = &ccontext.GlobalConfig{}
 	u.info.IMConfig = config
 	u.connListener = listener
+	u.initEmptyListener()
 	u.initResources()
 	return true
+}
+func (u *LoginMgr) initEmptyListener() {
+	u.groupListener = newEmptyGroupListener()
+	u.friendListener = newEmptyFriendshipListener()
+	u.conversationListener = newEmptyConversationListener()
+	u.advancedMsgListener = newEmptyAdvancedMsgListener()
+	u.batchMsgListener = newEmptyBatchMsgListener()
+	u.userListener = newEmptyUserListener()
+	u.businessListener = newEmptyCustomBusinessListener()
+
 }
 
 func (u *LoginMgr) Context() context.Context {
