@@ -338,7 +338,7 @@ func (u *LoginMgr) InitSDK(config sdk_struct.IMConfig, listener open_im_sdk_call
 	u.info = &ccontext.GlobalConfig{}
 	u.info.IMConfig = config
 	u.connListener = listener
-	u.initEmptyListener()
+	//u.initEmptyListener()
 	u.initResources()
 	return true
 }
