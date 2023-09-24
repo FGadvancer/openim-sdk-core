@@ -347,7 +347,6 @@ func (u *LoginMgr) initEmptyListener() {
 	u.friendListener = newEmptyFriendshipListener()
 	u.conversationListener = newEmptyConversationListener()
 	u.advancedMsgListener = newEmptyAdvancedMsgListener()
-	u.batchMsgListener = newEmptyBatchMsgListener()
 	u.userListener = newEmptyUserListener()
 	u.businessListener = newEmptyCustomBusinessListener()
 
