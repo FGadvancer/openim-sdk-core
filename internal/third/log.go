@@ -37,6 +37,7 @@ func (t *Third) uploadLogs(ctx context.Context, params []sdk_params_callback.Upl
 		resp, err := t.fileUploader.UploadFile(ctx, &uploadfile.UploadFileReq{Filepath: filename, Name: file.Name(), Cause: "upload_logs"}, nil)
 		if err != nil {
 			errsb.WriteString(err.Error())
+			continue
 		}
 		var fileURL third.FileURL
 		fileURL.Filename = filename
