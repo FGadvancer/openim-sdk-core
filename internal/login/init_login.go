@@ -358,17 +358,6 @@ func (u *LoginMgr) login(ctx context.Context, userID, token string) error {
 	return nil
 }
 
-func (u *LoginMgr) InitSDK(config sdk_struct.IMConfig, listener open_im_sdk_callback.OnConnListener) bool {
-	if listener == nil {
-		return false
-	}
-	u.info = &ccontext.GlobalConfig{}
-	u.info.IMConfig = config
-	u.connListener = listener
-	u.initResources()
-	return true
-}
-
 func (u *LoginMgr) Context() context.Context {
 	return u.ctx
 }

@@ -15,15 +15,23 @@
 package open_im_sdk
 
 import (
+	"context"
 	"errors"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/business"
+	conv "github.com/openimsdk/openim-sdk-core/v3/internal/conversation_msg"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/file"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/friend"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/full"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/group"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/interaction"
 	"github.com/openimsdk/openim-sdk-core/v3/internal/login"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/third"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/user"
 	"github.com/openimsdk/openim-sdk-core/v3/open_im_sdk_callback"
-	"github.com/openimsdk/openim-sdk-core/v3/pkg/log"
-	"github.com/openimsdk/openim-sdk-core/v3/pkg/sdkerrs"
+	"github.com/openimsdk/openim-sdk-core/v3/pkg/ccontext"
+	"github.com/openimsdk/openim-sdk-core/v3/pkg/common"
+	"github.com/openimsdk/openim-sdk-core/v3/pkg/db/db_interface"
 	"github.com/openimsdk/openim-sdk-core/v3/pkg/utils"
-	"github.com/openimsdk/openim-sdk-core/v3/sdk_struct"
-	"reflect"
-	"runtime"
 	"strings"
 	"sync"
 )
@@ -35,42 +43,56 @@ type Caller interface {
 }
 
 var (
-	UserSDKRwLock sync.RWMutex
-	// userMap for web and pc
-	UserRouterMap map[string]*login.LoginMgr
+
 	// Client-independent user class
-	UserForSDK *login.LoginMgr
+	UserForSDK *LoginMgr
 )
 
-// init initializes the UserRouterMap to hold a map of string keys and *login.LoginMgr values.
-func init() {
-	//UserSDKRwLock.Lock()
-	//defer UserSDKRwLock.Unlock()
-	UserRouterMap = make(map[string]*login.LoginMgr, 0)
+type LoginMgr struct {
+	friend       *friend.Friend
+	group        *group.Group
+	conversation *conv.Conversation
+	user         *user.User
+	file         *file.File
+	business     *business.Business
+
+	full         *full.Full
+	db           db_interface.DataBase
+	longConnMgr  *interaction.LongConnMgr
+	msgSyncer    *interaction.MsgSyncer
+	third        *third.Third
+	token        string
+	loginUserID  string
+	connListener open_im_sdk_callback.OnConnListener
+
+	loginTime int64
+
+	w           sync.Mutex
+	loginStatus int
+
+	groupListener               open_im_sdk_callback.OnGroupListener
+	friendListener              open_im_sdk_callback.OnFriendshipListener
+	conversationListener        open_im_sdk_callback.OnConversationListener
+	advancedMsgListener         open_im_sdk_callback.OnAdvancedMsgListener
+	batchMsgListener            open_im_sdk_callback.OnBatchMsgListener
+	userListener                open_im_sdk_callback.OnUserListener
+	signalingListener           open_im_sdk_callback.OnSignalingListener
+	signalingListenerFroService open_im_sdk_callback.OnSignalingListener
+	businessListener            open_im_sdk_callback.OnCustomBusinessListener
+
+	conversationCh     chan common.Cmd2Value
+	cmdWsCh            chan common.Cmd2Value
+	heartbeatCmdCh     chan common.Cmd2Value
+	pushMsgAndMaxSeqCh chan common.Cmd2Value
+	loginMgrCh         chan common.Cmd2Value
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	info   *ccontext.GlobalConfig
 }
 
-// GetUserWorker returns a user's login manager by its ID.
-func GetUserWorker(uid string) *login.LoginMgr {
-	UserSDKRwLock.Lock()
-	defer UserSDKRwLock.Unlock()
-	v, ok := UserRouterMap[uid]
-	if ok {
-		return v
-	}
-	UserRouterMap[uid] = new(login.LoginMgr)
-	return UserRouterMap[uid]
-}
-
-// InitOnce initializes the SDK by setting the server configuration.
-func InitOnce(config *sdk_struct.IMConfig) bool {
-	//sdk_struct.SvrConf = *config
-	return true
-}
-
-// CheckToken checks user authentication token.
-func CheckToken(userID, token string, operationID string) error {
-	_, err := login.CheckToken(userID, token, operationID)
-	return err
+func NewLoginMgr() *LoginMgr {
+	return &LoginMgr{}
 }
 
 // CheckResourceLoad checks the SDK is resource load status.
@@ -93,109 +115,4 @@ func CheckResourceLoad(uSDK *login.LoginMgr, funcName string) error {
 }
 
 type name struct {
-}
-
-var ErrNotSetCallback = errors.New("not set callback to call")
-var ErrNotSetFunc = errors.New("not set funcation to call")
-
-// BaseCaller calls the SDK's basic caller by checking the arguments and verifying the callback.
-// First, it checks that the number of arguments is correct and gets the operation ID.
-// Then, it checks that the resources have been loaded, and returns an error if they have not.
-// Finally, it uses reflection to call the function, passing in the callback and arguments, and runs the function in a different goroutine.
-// If a panic occurs, it converts the panic to a string and returns its error through the callback.
-func BaseCaller(funcName interface{}, callback open_im_sdk_callback.Base, args ...interface{}) {
-	var operationID string
-	if len(args) <= 0 {
-		callback.OnError(int32(sdkerrs.ErrArgs.Code()), sdkerrs.ErrArgs.Msg())
-		return
-	}
-	if v, ok := args[len(args)-1].(string); ok {
-		operationID = v
-	} else {
-		callback.OnError(int32(sdkerrs.ErrArgs.Code()), sdkerrs.ErrArgs.Msg())
-		return
-	}
-	if err := CheckResourceLoad(UserForSDK, ""); err != nil {
-		log.Error(operationID, "resource loading is not completed ", err.Error())
-		callback.OnError(sdkerrs.ResourceLoadNotCompleteError, "ErrResourceLoadNotComplete")
-		return
-	}
-	defer func() {
-		if rc := recover(); rc != nil {
-			log.Error(operationID, "err:", rc)
-			var temp string
-			switch x := rc.(type) {
-			case string:
-				temp = errors.New(x).Error()
-			case error:
-				buf := make([]byte, 1<<20)
-				runtime.Stack(buf, true)
-				temp = x.Error()
-			default:
-				temp = errors.New("unknown panic").Error()
-			}
-			callback.OnError(int32(sdkerrs.ErrArgs.Code()), temp)
-		}
-	}()
-	if funcName == nil {
-		panic(utils.Wrap(ErrNotSetFunc, ""))
-	}
-	var values []reflect.Value
-	refFuncName := reflect.ValueOf(funcName)
-	if callback != nil {
-		values = append(values, reflect.ValueOf(callback))
-	} else {
-		log.Error("AsyncCallWithCallback", "not set callback")
-		panic(ErrNotSetCallback)
-	}
-	for i := 0; i < len(args); i++ {
-		values = append(values, reflect.ValueOf(args[i]))
-	}
-	pc, _, _, _ := runtime.Caller(1)
-	funcNameString := utils.CleanUpfuncName(runtime.FuncForPC(pc).Name())
-	log.Debug(operationID, funcNameString, "input args:", args)
-	go refFuncName.Call(values)
-}
-
-// SendMessageCaller sends a message by calling the SDK's message sender.
-func SendMessageCaller(funcName interface{}, callback open_im_sdk_callback.SendMsgCallBack, args ...interface{}) {
-	var operationID string
-	if len(args) <= 0 {
-		callback.OnError(int32(sdkerrs.ErrArgs.Code()), sdkerrs.ErrArgs.Msg())
-		return
-	}
-	if v, ok := args[len(args)-1].(string); ok {
-		operationID = v
-	} else {
-		callback.OnError(int32(sdkerrs.ErrArgs.Code()), sdkerrs.ErrArgs.Msg())
-		return
-	}
-	if err := CheckResourceLoad(UserForSDK, ""); err != nil {
-		log.Error(operationID, "resource loading is not completed ", err.Error())
-		callback.OnError(sdkerrs.ResourceLoadNotCompleteError, "ErrResourceLoadNotComplete")
-		return
-	}
-	defer func() {
-		if rc := recover(); rc != nil {
-			log.Error(operationID, "err:", rc)
-		}
-	}()
-	if funcName == nil {
-		panic(utils.Wrap(ErrNotSetFunc, ""))
-	}
-	var values []reflect.Value
-	refFuncName := reflect.ValueOf(funcName)
-	if callback != nil {
-		values = append(values, reflect.ValueOf(callback))
-	} else {
-		log.Error("AsyncCallWithCallback", "not set callback")
-		panic(ErrNotSetCallback)
-	}
-	for i := 0; i < len(args); i++ {
-		values = append(values, reflect.ValueOf(args[i]))
-	}
-	pc, _, _, _ := runtime.Caller(1)
-	funcNameString := utils.CleanUpfuncName(runtime.FuncForPC(pc).Name())
-	log.Debug(operationID, funcNameString, "input args:", args)
-	go refFuncName.Call(values)
 }
