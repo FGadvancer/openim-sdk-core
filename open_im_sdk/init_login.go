@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/openimsdk/openim-sdk-core/v3/internal/login"
 	"github.com/openimsdk/openim-sdk-core/v3/open_im_sdk_callback"
 	"github.com/openimsdk/openim-sdk-core/v3/pkg/ccontext"
 	"github.com/openimsdk/openim-sdk-core/v3/pkg/constant"
@@ -43,8 +44,7 @@ func SetHeartbeatInterval(heartbeatInterval int) {
 
 func InitSDK(listener open_im_sdk_callback.OnConnListener, operationID string, config string) bool {
 	if UserForSDK != nil {
-		fmt.Println(operationID, "Initialize multiple times, use the existing ", UserForSDK,
-			"Previous configuration ", UserForSDK.ImConfig(), " now configuration: ", config)
+		fmt.Println(operationID, "Initialize multiple times, use the existing ", UserForSDK, " Previous configuration ", UserForSDK.ImConfig(), " now configuration: ", config)
 		return true
 	}
 	var configArgs sdk_struct.IMConfig
@@ -55,8 +55,7 @@ func InitSDK(listener open_im_sdk_callback.OnConnListener, operationID string, c
 	if configArgs.PlatformID == 0 {
 		return false
 	}
-	if err := log.InitFromConfig("open-im-sdk-core", "", int(configArgs.LogLevel),
-		configArgs.IsLogStandardOutput, false, configArgs.LogFilePath, rotateCount, rotationTime); err != nil {
+	if err := log.InitFromConfig("open-im-sdk-core", "", int(configArgs.LogLevel), configArgs.IsLogStandardOutput, false, configArgs.LogFilePath, rotateCount, rotationTime); err != nil {
 		fmt.Println(operationID, "log init failed ", err.Error())
 	}
 	fmt.Println("init log success")
@@ -76,19 +75,8 @@ func InitSDK(listener open_im_sdk_callback.OnConnListener, operationID string, c
 		log.ZError(ctx, "listener or config is nil", nil)
 		return false
 	}
-	UserForSDK = NewLoginMgr()
+	UserForSDK = new(login.LoginMgr)
 	return UserForSDK.InitSDK(configArgs, listener)
-}
-
-func (u *LoginMgr) InitSDK(config sdk_struct.IMConfig, listener open_im_sdk_callback.OnConnListener) bool {
-	if listener == nil {
-		return false
-	}
-	u.info = &ccontext.GlobalConfig{}
-	u.info.IMConfig = config
-	u.connListener = listener
-	u.initResources()
-	return true
 }
 func UnInitSDK(operationID string) {
 	if UserForSDK == nil {
