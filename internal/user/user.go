@@ -53,6 +53,10 @@ type User struct {
 	OnlineStatusCache *cache.Cache[string, *userPb.OnlineStatus]
 }
 
+func (u *User) SetLoginUserID(loginUserID string) {
+	u.loginUserID = loginUserID
+}
+
 // LoginTime gets the login time of the user.
 func (u *User) LoginTime() int64 {
 	return u.loginTime
@@ -69,8 +73,8 @@ func (u *User) SetListener(listener open_im_sdk_callback.OnUserListener) {
 }
 
 // NewUser creates a new User object.
-func NewUser(dataBase db_interface.DataBase, loginUserID string, conversationCh chan common.Cmd2Value) *User {
-	user := &User{DataBase: dataBase, loginUserID: loginUserID, conversationCh: conversationCh}
+func NewUser(dataBase db_interface.DataBase, conversationCh chan common.Cmd2Value) *User {
+	user := &User{DataBase: dataBase, conversationCh: conversationCh}
 	user.initSyncer()
 	user.UserBasicCache = cache.NewCache[string, *BasicInfo]()
 	user.OnlineStatusCache = cache.NewCache[string, *userPb.OnlineStatus]()

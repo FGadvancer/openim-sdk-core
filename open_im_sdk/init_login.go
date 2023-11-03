@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/openimsdk/openim-sdk-core/v3/internal/login"
 	"github.com/openimsdk/openim-sdk-core/v3/open_im_sdk_callback"
 	"github.com/openimsdk/openim-sdk-core/v3/pkg/ccontext"
 	"github.com/openimsdk/openim-sdk-core/v3/pkg/constant"
@@ -75,7 +74,7 @@ func InitSDK(listener open_im_sdk_callback.OnConnListener, operationID string, c
 		log.ZError(ctx, "listener or config is nil", nil)
 		return false
 	}
-	UserForSDK = new(login.LoginMgr)
+	UserForSDK = NewLoginMgr()
 	return UserForSDK.InitSDK(configArgs, listener)
 }
 func UnInitSDK(operationID string) {

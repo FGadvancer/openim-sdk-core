@@ -76,6 +76,10 @@ type Conversation struct {
 	startTime            time.Time
 }
 
+func (c *Conversation) SetLoginUserID(loginUserID string) {
+	c.loginUserID = loginUserID
+}
+
 func (c *Conversation) SetListenerForService(listener open_im_sdk_callback.OnListenerForService) {
 	c.listenerForService = listener
 }
@@ -113,7 +117,6 @@ func NewConversation(ctx context.Context, longConnMgr *interaction.LongConnMgr, 
 	n := &Conversation{db: db,
 		LongConnMgr:          longConnMgr,
 		recvCH:               ch,
-		loginUserID:          info.UserID(),
 		platformID:           info.PlatformID(),
 		DataDir:              info.DataDir(),
 		friend:               friend,

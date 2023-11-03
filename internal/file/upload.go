@@ -59,8 +59,9 @@ type partInfo struct {
 	PartMd5s    []string
 }
 
-func NewFile(database db_interface.DataBase, loginUserID string) *File {
-	return &File{database: database, loginUserID: loginUserID, confLock: &sync.Mutex{}, mapLocker: &sync.Mutex{}, uploading: make(map[string]*lockInfo)}
+func NewFile(database db_interface.DataBase) *File {
+	return &File{database: database, confLock: &sync.Mutex{}, mapLocker: &sync.Mutex{},
+		uploading: make(map[string]*lockInfo)}
 }
 
 type File struct {
@@ -70,6 +71,10 @@ type File struct {
 	partLimit   *third.PartLimitResp
 	mapLocker   sync.Locker
 	uploading   map[string]*lockInfo
+}
+
+func (f *File) SetLoginUserID(loginUserID string) {
+	f.loginUserID = loginUserID
 }
 
 type lockInfo struct {

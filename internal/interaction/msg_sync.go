@@ -46,11 +46,14 @@ type MsgSyncer struct {
 
 }
 
+func (m *MsgSyncer) SetLoginUserID(loginUserID string) {
+	m.loginUserID = loginUserID
+}
+
 // NewMsgSyncer creates a new instance of the message synchronizer.
 func NewMsgSyncer(ctx context.Context, conversationCh, PushMsgAndMaxSeqCh chan common.Cmd2Value,
-	loginUserID string, longConnMgr *LongConnMgr, db db_interface.DataBase, syncTimes int) (*MsgSyncer, error) {
+	longConnMgr *LongConnMgr, db db_interface.DataBase, syncTimes int) (*MsgSyncer, error) {
 	m := &MsgSyncer{
-		loginUserID:        loginUserID,
 		longConnMgr:        longConnMgr,
 		PushMsgAndMaxSeqCh: PushMsgAndMaxSeqCh,
 		conversationCh:     conversationCh,
@@ -59,16 +62,11 @@ func NewMsgSyncer(ctx context.Context, conversationCh, PushMsgAndMaxSeqCh chan c
 		db:                 db,
 		syncTimes:          syncTimes,
 	}
-	if err := m.loadSeq(ctx); err != nil {
-		log.ZError(ctx, "loadSeq err", err)
-		return nil, err
-	}
-	go m.DoListener()
 	return m, nil
 }
 
 // seq The db reads the data to the memory,set syncedMaxSeqs
-func (m *MsgSyncer) loadSeq(ctx context.Context) error {
+func (m *MsgSyncer) LoadSeq(ctx context.Context) error {
 	conversationIDList, err := m.db.GetAllConversationIDList(ctx)
 	if err != nil {
 		log.ZError(ctx, "get conversation id list failed", err)
@@ -99,12 +97,12 @@ func (m *MsgSyncer) loadSeq(ctx context.Context) error {
 
 // DoListener Listen to the message pipe of the message synchronizer
 // and process received and pushed messages
-func (m *MsgSyncer) DoListener() {
+func (m *MsgSyncer) DoListener(ctx context.Context) {
 	for {
 		select {
 		case cmd := <-m.PushMsgAndMaxSeqCh:
 			m.handlePushMsgAndEvent(cmd)
-		case <-m.ctx.Done():
+		case <-ctx.Done():
 			log.ZInfo(m.ctx, "msg syncer done, sdk logout.....")
 			return
 		}

@@ -31,8 +31,12 @@ type Third struct {
 	fileUploader *file.File
 }
 
-func NewThird(platformID int32, loginUserID, version, LogFilePath string, fileUploader *file.File) *Third {
-	return &Third{platformID: platformID, loginUserID: loginUserID, version: version, LogFilePath: LogFilePath, fileUploader: fileUploader}
+func (c *Third) SetLoginUserID(loginUserID string) {
+	c.loginUserID = loginUserID
+}
+
+func NewThird(platformID int32, version, LogFilePath string, fileUploader *file.File) *Third {
+	return &Third{platformID: platformID, version: version, LogFilePath: LogFilePath, fileUploader: fileUploader}
 }
 
 func (c *Third) UpdateFcmToken(ctx context.Context, fcmToken string, expireTime int64) error {

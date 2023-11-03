@@ -31,8 +31,8 @@ import (
 	"github.com/OpenIMSDK/tools/log"
 )
 
-func NewFriend(loginUserID string, db db_interface.DataBase, user *user.User, conversationCh chan common.Cmd2Value) *Friend {
-	f := &Friend{loginUserID: loginUserID, db: db, user: user, conversationCh: conversationCh}
+func NewFriend(db db_interface.DataBase, user *user.User, conversationCh chan common.Cmd2Value) *Friend {
+	f := &Friend{db: db, user: user, conversationCh: conversationCh}
 	f.initSyncer()
 	return f
 }
@@ -49,6 +49,10 @@ type Friend struct {
 	loginTime          int64
 	conversationCh     chan common.Cmd2Value
 	listenerForService open_im_sdk_callback.OnListenerForService
+}
+
+func (f *Friend) SetLoginUserID(loginUserID string) {
+	f.loginUserID = loginUserID
 }
 
 func (f *Friend) initSyncer() {
