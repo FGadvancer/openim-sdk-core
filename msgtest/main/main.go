@@ -67,11 +67,11 @@ func main() {
 	//}
 	go PrintQPS()
 	//// init users
-	//p.InitUserConns(f)
+	p.InitUserConns([]string{"fastened_user_prefix_testv3new_1001", "fastened_user_prefix_testv3new_1002"})
 	//log.ZDebug(ctx, "all user init connect to server success,start send message")
 	//time.Sleep(10 * time.Second)
 	//p.SendSingleMessages(f, 100, time.Millisecond*100)
-	p.SendMessages("fastened_user_prefix_testv3new_2", "fastened_user_prefix_testv3new_3", 100000)
+	p.SendMessages("fastened_user_prefix_testv3new_1001", "fastened_user_prefix_testv3new_1002", 100000)
 	time.Sleep(1 * time.Minute)
 	p.CheckMsg(ctx)
 
