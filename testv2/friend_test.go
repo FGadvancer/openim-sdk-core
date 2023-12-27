@@ -15,6 +15,7 @@
 package testv2
 
 import (
+	"github.com/OpenIMSDK/protocol/wrapperspb"
 	"github.com/openimsdk/openim-sdk-core/v3/open_im_sdk"
 	"github.com/openimsdk/openim-sdk-core/v3/pkg/sdk_params_callback"
 	"testing"
@@ -36,8 +37,9 @@ func Test_GetSpecifiedFriendsInfo(t *testing.T) {
 
 func Test_AddFriend(t *testing.T) {
 	err := open_im_sdk.UserForSDK.Friend().AddFriend(ctx, &friend2.ApplyToAddFriendReq{
-		ToUserID: "45644221123",
+		ToUserID: "2",
 		ReqMsg:   "test add",
+		Ex:       "add",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +68,7 @@ func Test_AddFriend(t *testing.T) {
 //}
 
 func Test_AcceptFriendApplication(t *testing.T) {
-	req := &sdk_params_callback.ProcessFriendApplicationParams{ToUserID: "6754269405", HandleMsg: "test accept"}
+	req := &sdk_params_callback.ProcessFriendApplicationParams{ToUserID: "1", HandleMsg: "test accept"}
 	err := open_im_sdk.UserForSDK.Friend().AcceptFriendApplication(ctx, req)
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +97,19 @@ func Test_CheckFriend(t *testing.T) {
 		t.Log(re)
 	}
 }
+func Test_PinFriend(t *testing.T) {
+	pinParams := &sdk_params_callback.SetFriendPinParams{
+		ToUserIDs: []string{"2", "3"},
+		IsPinned:  &wrapperspb.BoolValue{Value: false},
+	}
 
+	err := open_im_sdk.UserForSDK.Friend().PinFriends(ctx, pinParams)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("CheckFriend success", ctx.Value("operationID"))
+}
 func Test_DeleteFriend(t *testing.T) {
 	err := open_im_sdk.UserForSDK.Friend().DeleteFriend(ctx, "863454357")
 	if err != nil {
@@ -135,7 +149,7 @@ func Test_SetFriendRemark(t *testing.T) {
 }
 
 func Test_AddBlack(t *testing.T) {
-	err := open_im_sdk.UserForSDK.Friend().AddBlack(ctx, "863454357")
+	err := open_im_sdk.UserForSDK.Friend().AddBlack(ctx, "863454357", "ex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,5 +172,11 @@ func Test_GetBlackList(t *testing.T) {
 	t.Log("GetBlackList success", ctx.Value("operationID"))
 	for _, item := range info {
 		t.Log(*item)
+	}
+}
+func Test_SetFriendsEx(t *testing.T) {
+	err := open_im_sdk.UserForSDK.Friend().SetFriendsEx(ctx, []string{"2"}, "exx")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

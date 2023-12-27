@@ -58,6 +58,7 @@ func (i *Friend) UpdateFriend(ctx context.Context, friend *model_struct.LocalFri
 		FaceURL:        friend.FaceURL,
 		Ex:             friend.Ex,
 		AttachedInfo:   friend.AttachedInfo,
+		IsPinned:       friend.IsPinned,
 	}
 	_, err := exec.Exec(utils.StructToJsonString(tempLocalFriend))
 	return err
@@ -105,6 +106,13 @@ func (i *Friend) SearchFriendList(ctx context.Context, keyword string, isSearchU
 			return nil, exec.ErrType
 		}
 	}
+}
+func (i *Friend) UpdateColumnsFriend(ctx context.Context, friendIDs []string, args map[string]interface{}) error {
+	_, err := exec.Exec(utils.StructToJsonString(friendIDs), utils.StructToJsonString(args))
+	if err != nil {
+		return err // Return immediately if there's an error with any friendID
+	}
+	return nil
 }
 
 func (i *Friend) GetFriendInfoByFriendUserID(ctx context.Context, FriendUserID string) (*model_struct.LocalFriend, error) {

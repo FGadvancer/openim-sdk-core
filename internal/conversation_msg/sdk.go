@@ -196,15 +196,16 @@ func (c *Conversation) SetOneConversationBurnDuration(ctx context.Context, conve
 func (c *Conversation) SetOneConversationRecvMessageOpt(ctx context.Context, conversationID string, opt int) error {
 	return c.setConversationAndSync(ctx, conversationID, &pbConversation.ConversationReq{RecvMsgOpt: &wrapperspb.Int32Value{Value: int32(opt)}})
 }
-
+func (c *Conversation) SetOneConversationEx(ctx context.Context, conversationID string, ex string) error {
+	return c.setConversationAndSync(ctx, conversationID, &pbConversation.ConversationReq{Ex: &wrapperspb.StringValue{
+		Value: ex,
+	}})
+}
 func (c *Conversation) GetTotalUnreadMsgCount(ctx context.Context) (totalUnreadCount int32, err error) {
 	return c.db.GetTotalUnreadMsgCountDB(ctx)
 }
 
-func (c *Conversation) SetConversationListener(listener open_im_sdk_callback.OnConversationListener) {
-	if c.ConversationListener != nil {
-		return
-	}
+func (c *Conversation) SetConversationListener(listener func() open_im_sdk_callback.OnConversationListener) {
 	c.ConversationListener = listener
 }
 
@@ -1188,6 +1189,44 @@ func (c *Conversation) DeleteMessageReactionExtensions(ctx context.Context, s *s
 func (c *Conversation) GetMessageListReactionExtensions(ctx context.Context, conversationID string, messageList []*sdk_struct.MsgStruct) ([]*server_api_params.SingleMessageExtensionResult, error) {
 	return c.getMessageListReactionExtensions(ctx, conversationID, messageList)
 
+}
+func (c *Conversation) SearchConversation(ctx context.Context, searchParam string) ([]*server_api_params.Conversation, error) {
+	// Check if search parameter is empty
+	if searchParam == "" {
+		return nil, sdkerrs.ErrArgs.Wrap("search parameter cannot be empty")
+	}
+
+	// Perform the search in your database or data source
+	// This is a placeholder for the actual database call
+	conversations, err := c.db.SearchConversations(ctx, searchParam)
+	if err != nil {
+		// Handle any errors that occurred during the search
+		return nil, err
+	}
+	apiConversations := make([]*server_api_params.Conversation, len(conversations))
+	for i, localConv := range conversations {
+		// Create new server_api_params.Conversation and map fields from localConv
+		apiConv := &server_api_params.Conversation{
+			ConversationID:        localConv.ConversationID,
+			ConversationType:      localConv.ConversationType,
+			UserID:                localConv.UserID,
+			GroupID:               localConv.GroupID,
+			RecvMsgOpt:            localConv.RecvMsgOpt,
+			UnreadCount:           localConv.UnreadCount,
+			DraftTextTime:         localConv.DraftTextTime,
+			IsPinned:              localConv.IsPinned,
+			IsPrivateChat:         localConv.IsPrivateChat,
+			BurnDuration:          localConv.BurnDuration,
+			GroupAtType:           localConv.GroupAtType,
+			IsNotInGroup:          localConv.IsNotInGroup,
+			UpdateUnreadCountTime: localConv.UpdateUnreadCountTime,
+			AttachedInfo:          localConv.AttachedInfo,
+			Ex:                    localConv.Ex,
+		}
+		apiConversations[i] = apiConv
+	}
+	// Return the list of conversations
+	return apiConversations, nil
 }
 
 /**

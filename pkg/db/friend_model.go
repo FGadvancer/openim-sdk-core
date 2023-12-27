@@ -48,7 +48,6 @@ func (d *DataBase) UpdateFriend(ctx context.Context, friend *model_struct.LocalF
 	return utils.Wrap(t.Error, "")
 
 }
-
 func (d *DataBase) GetAllFriendList(ctx context.Context) ([]*model_struct.LocalFriend, error) {
 	d.friendMtx.Lock()
 	defer d.friendMtx.Unlock()
@@ -124,4 +123,13 @@ func (d *DataBase) GetFriendInfoList(ctx context.Context, friendUserIDList []str
 		transfer = append(transfer, &v1)
 	}
 	return transfer, err
+}
+func (d *DataBase) UpdateColumnsFriend(ctx context.Context, friendIDs []string, args map[string]interface{}) error {
+	d.mRWMutex.Lock()
+	defer d.mRWMutex.Unlock()
+
+	// Update records where FriendUserID is in the friendIDs slice
+	t := d.conn.WithContext(ctx).Model(&model_struct.LocalFriend{}).Where("friend_user_id IN ?", friendIDs).Updates(args)
+
+	return utils.Wrap(t.Error, "UpdateColumnsFriend failed")
 }

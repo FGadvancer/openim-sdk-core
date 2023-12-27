@@ -206,7 +206,10 @@ func (w *WrapperConMsg) SetConversationRecvMessageOpt(_ js.Value, args []js.Valu
 	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
 	return event_listener.NewCaller(open_im_sdk.SetConversationRecvMessageOpt, callback, &args).AsyncCallWithCallback()
 }
-
+func (w *WrapperConMsg) SearchConversation(_ js.Value, args []js.Value) interface{} {
+	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
+	return event_listener.NewCaller(open_im_sdk.SearchConversation, callback, &args).AsyncCallWithCallback()
+}
 func (w *WrapperConMsg) SetGlobalRecvMessageOpt(_ js.Value, args []js.Value) interface{} {
 	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
 	return event_listener.NewCaller(open_im_sdk.SetGlobalRecvMessageOpt, callback, &args).AsyncCallWithCallback()
@@ -285,6 +288,10 @@ func (w *WrapperConMsg) HideConversation(_ js.Value, args []js.Value) interface{
 	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
 	return event_listener.NewCaller(open_im_sdk.HideConversation, callback, &args).AsyncCallWithCallback()
 }
+func (w *WrapperConMsg) SetConversationEx(_ js.Value, args []js.Value) interface{} {
+	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
+	return event_listener.NewCaller(open_im_sdk.SetConversationEx, callback, &args).AsyncCallWithCallback()
+}
 func (w *WrapperConMsg) SetConversationDraft(_ js.Value, args []js.Value) interface{} {
 	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
 	return event_listener.NewCaller(open_im_sdk.SetConversationDraft, callback, &args).AsyncCallWithCallback()
@@ -297,6 +304,7 @@ func (w *WrapperConMsg) ResetConversationGroupAtType(_ js.Value, args []js.Value
 
 func (w *WrapperConMsg) PinConversation(_ js.Value, args []js.Value) interface{} {
 	callback := event_listener.NewBaseCallback(utils.FirstLower(utils.GetSelfFuncName()), w.commonFunc)
+
 	return event_listener.NewCaller(open_im_sdk.PinConversation, callback, &args).AsyncCallWithCallback()
 }
 
