@@ -17,6 +17,7 @@
 package interaction
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -70,7 +71,15 @@ func (d *Default) ReadMessage() (int, []byte, error) {
 }
 
 func (d *Default) Dial(urlStr string, requestHeader http.Header) (*http.Response, error) {
+	dial := &net.Dialer{Timeout: 5 * time.Second}
+	websocket.DefaultDialer = &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 10 * time.Second,
+		NetDial:          dial.Dial,
+	}
+
 	conn, httpResp, err := websocket.DefaultDialer.Dial(urlStr, requestHeader)
+
 	if err == nil {
 		d.conn = conn
 	}
