@@ -522,7 +522,7 @@ func (c *LongConnMgr) handleMessage(message []byte) error {
 			log.ZError(ctx, "handlerUserOnlineChange failed", err, "wsResp", wsResp)
 		}
 	default:
-		return sdkerrs.ErrMsgBinaryTypeNotSupport
+		log.ZWarn(ctx, "socket receive unknown protocol", nil)
 	}
 	return nil
 }
