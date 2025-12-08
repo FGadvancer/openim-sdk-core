@@ -200,8 +200,8 @@ func PopulateMsgStructByContentType(msg *sdk_struct.MsgStruct) (err error) {
 		if err := utils.JsonStringToStruct(msg.AttachedInfo, &attachedInfo); err != nil {
 			log.ZWarn(context.Background(), "JsonStringToStruct error", err, "localMessage.AttachedInfo", msg.AttachedInfo)
 		}
-		msg.AttachedInfoElem = &attachedInfo
 	}
+	msg.AttachedInfoElem = &attachedInfo
 	msg.Content = ""
 	return errs.Wrap(err)
 }

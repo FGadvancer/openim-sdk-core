@@ -101,18 +101,17 @@ func call_(operationID string, fn any, args ...any) (res any, err error) {
 
 	defer func(start time.Time) {
 		if r := recover(); r != nil {
-			p := fmt.Sprintf("panic: %+v\n%s", r, debug.Stack())
+			p := fmt.Sprintf("%+v\n%s", r, debug.Stack())
 			err = fmt.Errorf("call panic: %+v", p)
+		}
+		elapsed := time.Since(start).Milliseconds()
+		if err == nil {
+			log.ZInfo(ctx, "fn call success", "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed), "resp", res)
 		} else {
-			elapsed := time.Since(start).Milliseconds()
-			if err == nil {
-				log.ZInfo(ctx, "fn call success", "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed), "resp", res)
-			} else {
-				log.ZError(ctx, "fn call error", err, "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed))
-
-			}
+			log.ZError(ctx, "fn call error", err, "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed))
 
 		}
+
 	}(t)
 
 	log.ZInfo(ctx, "func call req", "function name", funcName, "args", args)
@@ -263,19 +262,20 @@ func syncCall(operationID string, fn any, args ...any) (res string) {
 
 	ctx := ccontext.WithOperationID(IMUserContext.Context(), operationID)
 	t := time.Now()
+
 	defer func(start time.Time) {
 		if r := recover(); r != nil {
-			fmt.Printf("panic: %+v\n%s", r, debug.Stack())
+			p := fmt.Sprintf("%+v\n%s", r, debug.Stack())
+			err = fmt.Errorf("call panic: %+v", p)
+		}
+		elapsed := time.Since(start).Milliseconds()
+		if err == nil {
+			log.ZInfo(ctx, "fn call success", "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed), "resp", res)
 		} else {
-			elapsed := time.Since(start).Milliseconds()
-			if err == nil {
-				log.ZInfo(ctx, "fn call success", "function name", funcName, "resp", res, "cost time", fmt.Sprintf("%d ms", elapsed))
-			} else {
-				log.ZError(ctx, "fn call error", err, "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed))
-			}
-
+			log.ZError(ctx, "fn call error", err, "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed))
 		}
 	}(t)
+
 	log.ZInfo(ctx, "func call req", "function name", funcName, "args", args)
 	ins = append(ins, reflect.ValueOf(ctx))
 	for i := 0; i < len(args); i++ {
@@ -366,32 +366,28 @@ func messageCall(callback open_im_sdk_callback.SendMsgCallBack, operationID stri
 	go messageCall_(callback, operationID, fn, args...)
 }
 func messageCall_(callback open_im_sdk_callback.SendMsgCallBack, operationID string, fn any, args ...any) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println(" panic err:", r, string(debug.Stack()))
-			callback.OnError(sdkerrs.SdkInternalError, fmt.Sprintf("recover: %+v", r))
-			return
-		}
-	}()
+	var (
+		err     error
+		res     any
+		jsonVal string
+	)
+
 	if operationID == "" {
-		callback.OnError(sdkerrs.ArgsError, sdkerrs.ErrArgs.WrapMsg("operationID is empty").Error())
+		err = sdkerrs.ErrArgs.WrapMsg("operationID is empty")
 		return
 	}
-	if err := CheckResourceLoad(IMUserContext, ""); err != nil {
-		if code, ok := errs.Unwrap(err).(errs.CodeError); ok {
-			callback.OnError(int32(code.Code()), err.Error())
-		}
+	if err = CheckResourceLoad(IMUserContext, ""); err != nil {
 		return
 	}
 	fnv := reflect.ValueOf(fn)
 	if fnv.Kind() != reflect.Func {
-		callback.OnError(sdkerrs.SdkInternalError, "go code error: fn is not function")
+		err = sdkerrs.ErrSdkInternal.WrapMsg("go code error: fn is not function")
 		return
 	}
 	fnt := fnv.Type()
 	numIn := fnt.NumIn()
 	if len(args)+1 != numIn {
-		callback.OnError(sdkerrs.SdkInternalError, "go code error: fn in args num is not match")
+		err = sdkerrs.ErrSdkInternal.WrapMsg("go code error: fn in args num is not match")
 		return
 	}
 
@@ -401,7 +397,25 @@ func messageCall_(callback open_im_sdk_callback.SendMsgCallBack, operationID str
 	ctx = ccontext.WithSendMessageCallback(ctx, callback)
 	funcPtr := reflect.ValueOf(fn).Pointer()
 	funcName := runtime.FuncForPC(funcPtr).Name()
-	log.ZInfo(ctx, "input req", "function name", funcName, "args", args)
+	defer func(start time.Time) {
+		if r := recover(); r != nil {
+			p := fmt.Sprintf("%+v\n%s", r, debug.Stack())
+			err = fmt.Errorf("call panic: %+v", p)
+		}
+		elapsed := time.Since(start).Milliseconds()
+		if err == nil {
+			log.ZInfo(ctx, "fn call success", "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed), "resp", res)
+			callback.OnSuccess(jsonVal)
+		} else {
+			log.ZError(ctx, "fn call error", err, "function name", funcName, "cost time", fmt.Sprintf("%d ms", elapsed))
+			if code, ok := errs.Unwrap(err).(errs.CodeError); ok {
+				callback.OnError(int32(code.Code()), err.Error())
+			} else {
+				callback.OnError(sdkerrs.UnknownCode, fmt.Sprintf("error %T not implement CodeError: %s", err, err))
+			}
+		}
+	}(t)
+	log.ZInfo(ctx, "func call req", "function name", funcName, "args", args)
 
 	ins = append(ins, reflect.ValueOf(ctx))
 	for i := 0; i < len(args); i++ { // callback open_im_sdk_callback.Base, operationID string, ...
@@ -415,8 +429,9 @@ func messageCall_(callback open_im_sdk_callback.SendMsgCallBack, operationID str
 			switch tag.Kind() {
 			case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map, reflect.Ptr:
 				v := reflect.New(tag)
-				if err := json.Unmarshal([]byte(args[i].(string)), v.Interface()); err != nil {
-					callback.OnError(sdkerrs.ArgsError, err.Error())
+				if errArgs := json.Unmarshal([]byte(args[i].(string)), v.Interface()); err != nil {
+					//callback.OnError(sdkerrs.ArgsError, errArgs.Error())
+					err = sdkerrs.ErrArgs.WrapMsg(errArgs.Error())
 					return
 				}
 				ins = append(ins, v.Elem())
@@ -429,14 +444,14 @@ func messageCall_(callback open_im_sdk_callback.SendMsgCallBack, operationID str
 			ins = append(ins, reflect.ValueOf(v))
 			continue
 		}
-		callback.OnError(sdkerrs.ArgsError, "go code error: fn in args type is not match")
+		err = sdkerrs.ErrSdkInternal.WrapMsg("go code error: fn in args type is not match")
 		return
 	}
 	var lastErr bool
 	if numOut := fnt.NumOut(); numOut > 0 {
 		lastErr = fnt.Out(numOut - 1).Implements(reflect.ValueOf(new(error)).Elem().Type())
 	}
-	//fmt.Println("fnv:", fnv.Interface(), "ins:", ins)
+
 	outs := fnv.Call(ins)
 
 	outVals := make([]any, 0, len(outs))
@@ -445,11 +460,7 @@ func messageCall_(callback open_im_sdk_callback.SendMsgCallBack, operationID str
 	}
 	if lastErr {
 		if last := outVals[len(outVals)-1]; last != nil {
-			if code, ok := errs.Unwrap(last.(error)).(errs.CodeError); ok {
-				callback.OnError(int32(code.Code()), last.(error).Error())
-			} else {
-				callback.OnError(sdkerrs.UnknownCode, fmt.Sprintf("error %T not implement CodeError: %s", last.(error), last.(error).Error()))
-			}
+			err = last.(error)
 			return
 		}
 
@@ -468,19 +479,18 @@ func messageCall_(callback open_im_sdk_callback.SendMsgCallBack, operationID str
 			}
 		}
 	}
-	var jsonVal any
 	if len(outVals) == 1 {
-		jsonVal = outVals[0]
+		res = outVals[0]
 	} else {
-		jsonVal = outVals
+		res = outVals
 	}
-	jsonData, err := json.Marshal(jsonVal)
+
+	jsonData, err := json.Marshal(res)
 	if err != nil {
-		callback.OnError(sdkerrs.ArgsError, err.Error())
+		err = sdkerrs.ErrSdkInternal.WrapMsg(fmt.Sprintf("function res json.Marshal error: %s", err))
 		return
 	}
-	log.ZInfo(ctx, "output resp", "function name", funcName, "resp", jsonVal, "cost time", time.Since(t))
-	callback.OnSuccess(string(jsonData))
+	jsonVal = string(jsonData)
 }
 
 func listenerCall(fn any, listener any) {
