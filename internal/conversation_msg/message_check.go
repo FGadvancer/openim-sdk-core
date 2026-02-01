@@ -544,7 +544,7 @@ func (c *Conversation) pullMessageIntoTable(ctx context.Context, pullMsgData map
 // Depending on the conversation type, it delegates the handling to either singleHandle (for single chats)
 // or groupHandle (for group chats). If conversation information retrieval fails, it returns the merged chat logs.
 func (c *Conversation) faceURLAndNicknameHandle(ctx context.Context, self, others []*model_struct.LocalChatLog, conversationID string) []*model_struct.LocalChatLog {
-	lc, err := c.db.GetConversation(ctx, conversationID)
+	lc, err := c.getConversationWithCache(ctx, conversationID)
 	if err != nil {
 		return append(self, others...)
 	}

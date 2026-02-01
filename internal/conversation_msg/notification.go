@@ -258,6 +258,9 @@ func (c *Conversation) doUpdateConversation(c2v common.Cmd2Value) {
 			// log.Error("internal", "setConversationFaceUrlAndNickName database err:", err.Error())
 			return
 		}
+		if st.SessionType == constant.SingleChatType && c.cache != nil {
+			c.cache.Delete(lc.ConversationID)
+		}
 		c.doUpdateConversation(common.Cmd2Value{Value: common.UpdateConNode{ConID: lc.ConversationID, Action: constant.ConChange, Args: []string{lc.ConversationID}}})
 
 	case constant.UpdateLatestMessageReadState:

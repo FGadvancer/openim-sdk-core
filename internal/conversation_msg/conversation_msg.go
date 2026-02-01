@@ -416,6 +416,9 @@ func (c *Conversation) doMsgNew(c2v common.Cmd2Value) {
 	}
 
 	tGetMultipleConversationDB := time.Now()
+	// TODO: For extreme performance, consider a pure in-memory conversation snapshot with async batch writes
+	// to the conversation table. Under very high group message rates, this can reduce DB pressure to message inserts
+	// plus cold-start server metadata refresh.
 	list, err := c.db.GetMultipleConversationDB(ctx, conversationIDs)
 	if err != nil {
 		log.ZError(ctx, "GetMultipleConversationDB", err, "conversationIDs", conversationIDs)
@@ -867,13 +870,6 @@ func (c *Conversation) updateConversation(lc *model_struct.LocalConversation, cs
 			cs[lc.ConversationID] = oldC
 		}
 	}
-}
-
-func mapConversationToList(m map[string]*model_struct.LocalConversation) (cs []*model_struct.LocalConversation) {
-	for _, v := range m {
-		cs = append(cs, v)
-	}
-	return cs
 }
 
 func (c *Conversation) batchAddFaceURLAndName(ctx context.Context, conversations ...*model_struct.LocalConversation) error {
